@@ -1,29 +1,29 @@
 const restify = require('restify');
 const { Client } = require('pg');
-const corsMiddleware = require('restify-cors-middleware2'); // (Tùy chọn) Để fix lỗi CORS nếu có
+const corsMiddleware = require('restify-cors-middleware2');
 
 const server = restify.createServer();
 
 // Fix lỗi CORS khi Frontend Vite gọi sang Backend
 const cors = corsMiddleware({
-  origins: ['*'], // Cho phép tất cả các nguồn
+  origins: ['*'],
 });
 server.pre(cors.preflight);
 server.use(cors.actual);
 
-// Hàm tạo client mới cho mỗi request để tránh lỗi client.end()
+// Hàm tạo client mới cho mỗi request, trỏ đúng sang container db_1
 function getClient() {
   return new Client({
-    user: 'postgres',
-    password: '1234',
-    host: 'localhost',
-    port: 5432,
-    database: 'myshop', // Sửa lại thành tên DB của bạn nếu khác
+    user: process.env.POSTGRES_USER || 'postgres',
+    password: process.env.POSTGRES_PASSWORD || '1234',
+    host: process.env.POSTGRES_HOST || 'db_1',
+    port: process.env.POSTGRES_PORT || 5432,
+    database: process.env.POSTGRES_DB || 'myshop',
   });
 }
 
-// Mục 17: Endpoint test kết nối
-server.get('/', async function(req, res, next) {
+// Endpoint test kết nối
+server.get('/', async function(req, res) {
   const client = getClient();
   let db_info = "Database is up & running";
   try {
@@ -35,11 +35,10 @@ server.get('/', async function(req, res, next) {
     await client.end();
   }
   res.send({ Server: "Server is working", Database: db_info });
-  return next();
 });
 
-// Mục 18: Truy vấn dữ liệu cho bảng room
-server.get('/room', async function(req, res, next) {
+// Truy vấn dữ liệu cho bảng room
+server.get('/room', async function(req, res) {
   const client = getClient();
   const sql = "SELECT * FROM room";
   let result = { rows: [] };
@@ -51,9 +50,7 @@ server.get('/room', async function(req, res, next) {
   } finally {
     await client.end();
   }
-  // Trả về đúng cấu trúc { rooms: [...] } mà App.jsx đang đợi
   res.send({ rooms: result.rows });
-  return next();
 });
 
 server.listen(8080, function() {
